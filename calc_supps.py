@@ -9,11 +9,20 @@ Created on Mon Sep 28 16:13:16 2020
 import torch
 import numpy as np
 import time
+from joblib import Parallel,delayed
 from tqdm import tqdm
 
+"""
+Main variables for both functions (key_motif_mining/key_motif_mining_gpu) are:
+- D: the data base of p-sequences which is an array of size NxD where N is the number of p-sequences and D is the number of elements in a p-sequence
+- g: the maximum gap constraint.
+- epsilon: the minimum threshold for a mined probabilistic motif. 
+"""
+
+# Expanse algorithm
 def expanse(t):
     nb_el = len(t[0].split())
-    assert nb_el>=2 , 'Number of elements should be greater than 1'
+    assert nb_el>=2 , 'Number of elefrom joblib import Parallel,delayedments should be greater than 1'
     new_t = []
     for motif_1 in t:
         motif_1 = motif_1.split()
@@ -27,6 +36,7 @@ def expanse(t):
                 new_t.append(motif)
     return new_t
 
+# Mining key motifs from p-sequences using PyTorch tensors with GPU 
 def calc_supp_torch(t,D,g):
     t = t.split()
     len_t = len(t)
@@ -92,18 +102,71 @@ def key_motif_mining_gpu(D,g,epsilon):
     
     return T
 
-if __name__ == "__main__":
-    from glob import glob
-    device = torch.device("cuda:0")
-    fns = glob("data/train_20_clusters_p8_setidx_0/*/*.pt")
-    D = []
-    for fn in fns:
-        item_data = torch.load(fn)['p_sequences']
-        D += item_data
+# Mining key motifs from p-sequences using Numpy
+def calc_supp_numpy(t,D,g):
+    t = t.split()
+    len_t = len(t)
+    len_p = D.shape[1]
+    nb_data = D.shape[0]
+    tables = np.zeros((nb_data,len_t,len_p))
+    tables[:,0,:] = D[:,:,int(t[0])]
+    for i in range(1,len_t):
+        for j in range(1,len_p):
+            tables[:,i,j] = D[:,j,int(t[i])]*np.max(tables[:,i-1,max(0,j-g):j],axis=1)
+    support = np.sum(np.max(tables[:,tables.shape[1]-1,:],axis=1))/tables.shape[0]
+    return support
+
+def key_motif_mining(D,g,epsilon):
+    k=1
+    num_clusters = D.shape[2]
+    T_1 = [str(i) for i in range(num_clusters)]
+    supports = Parallel(n_jobs=12,backend='multiprocessing')(delayed(calc_supp_numpy)(t,D,g) for t in tqdm(T_1))
+    T = {}
+    T_1_bis = []
+    for i in range(len(supports)):
+        if supports[i] >= epsilon:
+            T_1_bis.append(T_1[i])
+    T[str(k)] = T_1_bis
+    print(T_1_bis)
+    ret = True
+    while ret:
+        k+=1
+        if k==2:
+            T_k = []
+            for t_1 in T[str(k-1)]:
+                for t_2 in T[str(k-1)]:
+                    T_k.append(t_1 + ' ' + t_2)
+        else:
+            T_k = expanse(T[str(k-1)])
+            
+        supports = Parallel(n_jobs=12,backend='multiprocessing')(delayed(calc_supp_numpy)(t,D,g) for t in tqdm(T_k))
+
+        T_k_bis = []
+        for i in range(len(supports)):
+            if supports[i] >= epsilon:
+                T_k_bis.append(T_k[i])
+        if T_k_bis != []:
+            T[str(k)] = T_k_bis
+            print(T_k_bis)
+        else:
+            ret = False
+            
+        if k==D.shape[1]-1:
+            ret=False
+    return T
+
+# if __name__ == "__main__":
+#     from glob import glob
+#     device = torch.device("cuda:0")
+#     fns = glob("data/train_20_clusters_p8_setidx_0/*/*.pt")
+#     D = []
+#     for fn in fns:
+#         item_data = torch.load(fn)['p_sequences']
+#         D += item_data
     
-    D = np.array(D[:1000])
-    # t = "17 1 17"
+#     D = np.array(D[:1000])
+#     # t = "17 1 17"
     
-    time_0 = time.time()
-    T_2 = key_motif_mining_gpu(D, 5, 0.1)
-    print(time.time()-time_0)
+#     time_0 = time.time()
+#     T_2 = key_motif_mining_gpu(D, 5, 0.1)
+#     print(time.time()-time_0)
