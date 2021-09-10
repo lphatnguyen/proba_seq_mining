@@ -12,7 +12,7 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 from sklearn.svm import SVC
 from sklearn.metrics.pairwise import chi2_kernel
-from clustering import kmeans
+from clustering import clustering
 from mining_motifs import mining_motif
 from train_val import histogram_dyntex
 from motifs_filtering import filtering_motifs
@@ -68,11 +68,11 @@ def one_iter(set_idx):
                                                                           set_idx,args.loop)
     
     if not os.path.exists(codebook_path):
-        kmeans(dataset_path = dataset_path,
-               set_idx = set_idx,
-               patch_size = args.patch_size,
-               num_clusters = args.num_clusters,
-               loop = args.loop)
+        clustering(dataset_path = dataset_path,
+                   set_idx = set_idx,
+                   patch_size = args.patch_size,
+                   num_clusters = args.num_clusters,
+                   loop = args.loop)
     
     # Computing probabilistic sequences and deterministic sequences
     data_path = 'data/train_{}_clusters_p{}_setidx_{}/'.format(args.num_clusters,

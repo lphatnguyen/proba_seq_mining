@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 from joblib import dump
 import os
 
-def kmeans(dataset_path,
-           set_idx = 0,
-           patch_size=16,
-           num_clusters=20,
-           loop=1):
+def clustering(dataset_path,
+               set_idx = 0,
+               patch_size=16,
+               num_clusters=20,
+               loop=1):
     num_samples = 4
     dataset = ucla_dataset(path = dataset_path,
                            set_idx = set_idx,
@@ -93,7 +93,7 @@ def kmeans(dataset_path,
     dump(gmm,'codebooks/codebook_'+str(num_clusters)+'_p'+str(patch_size)+'_setidx_'+str(set_idx)+'_loop{}.joblib'.format(loop))
     
 if __name__ == "__main__": 
-    kmeans(dataset_path='../../datasets/UCLA dataset/',
-           patch_size=8,
-           set_idx = 0,
-           num_clusters=20)
+    clustering(dataset_path='../../datasets/UCLA dataset/',
+               patch_size=8,
+               set_idx = 0,
+               num_clusters=20)
